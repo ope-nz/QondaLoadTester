@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qonda Load Tester - Documentation</title>
+    <link rel="stylesheet" href="Qonda Load Tester.css">
+</head>
+<body>
+
+<header>
+    <h1>Qonda Load Tester</h1>
+    <p>Load testing for ArcGIS Server map and feature services</p>
+    <span class="version">8 October 2026 &middot; Qonda Load Tester.exe &middot; QondaLoadTester.pyt</span>
+</header>
+
+<div class="page-wrapper">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#x276E;</button>
+        <div class="sidebar-inner">
+            <nav>
+                <span class="nav-group-label">Overview</span>
+                <ul>
+                    <li><a href="#overview">What it does</a></li>
+                    <li><a href="#workflow">How a load test works</a></li>
+                    <li><a href="#files">Files in the app folder</a></li>
+                </ul>
+
+                <span class="nav-group-label">The App</span>
+                <ul>
+                    <li><a href="#app-login">Authentication</a></li>
+                    <li><a href="#app-modes">Modes</a></li>
+                    <li><a href="#app-create">Create New Test</a></li>
+                    <li><a href="#app-load">Load Existing Test</a></li>
+                    <li><a href="#app-run">Test Execution</a></li>
+                    <li><a href="#app-engine">What happens during a run</a></li>
+                </ul>
+
+                <span class="nav-group-label">Test Design</span>
+                <ul>
+                    <li><a href="#design-extent">Input extent</a></li>
+                    <li><a href="#design-scales">Scales and test areas</a></li>
+                    <li><a href="#design-requests">Requests per service</a></li>
+                    <li><a href="#design-file">The .websurge file</a></li>
+                </ul>
+
+                <span class="nav-group-label">ArcGIS Pro Toolbox</span>
+                <ul>
+                    <li><a href="#pyt-tool">Generate Load Test From Map</a></li>
+                    <li><a href="#pyt-extent">The extent layer</a></li>
+                    <li><a href="#pyt-layers">Which layers are tested</a></li>
+                    <li><a href="#pyt-paths">Relative or absolute paths</a></li>
+                    <li><a href="#pyt-output">Messages and extra files</a></li>
+                </ul>
+
+                <span class="nav-group-label">The Report</span>
+                <ul>
+                    <li><a href="#report-csv">Results CSV</a></li>
+                    <li><a href="#report-kpi">KPI summary</a></li>
+                    <li><a href="#report-charts">Charts</a></li>
+                    <li><a href="#report-heatmap">Heat map</a></li>
+                </ul>
+
+                <span class="nav-group-label">Configuration</span>
+                <ul>
+                    <li><a href="#config">config.json</a></li>
+                </ul>
+
+                <span class="nav-group-label">Reference</span>
+                <ul>
+                    <li><a href="#ref-count">Request count</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                </ul>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+        <div class="container">
+
+            <!-- ─── Overview ─────────────────────────────────────────────── -->
+
+            <div class="intro" id="overview">
+                <h2>What it does</h2>
+                <p>
+                    <strong>Qonda Load Tester</strong> is a Windows desktop app that load tests ArcGIS Server REST
+                    services. It sends realistic map traffic (layer queries and map image exports at many places and
+                    scales) with a set number of concurrent requests for a set time, then writes an HTML report of
+                    response times, throughput and errors.
+                </p>
+                <p>There are two parts:</p>
+                <div class="source-table">
+                    <table>
+                        <thead><tr><th>Part</th><th>Use it to</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Qonda Load Tester.exe</code></td><td>Log in, build a test from the server's service list, run tests and produce the report. <strong>The main tool.</strong></td></tr>
+                            <tr><td><code>QondaLoadTester.pyt</code></td><td>Build a test in ArcGIS Pro from the services in a map and the area on screen, or a polygon layer named <code>extent</code>. Run it in the app.</td></tr>                        </tbody>
+                    </table>
+                </div>
+                <div class="note">
+                    Requirements: Windows with .NET Framework 4.5 or later, network access to the ArcGIS Server, and an
+                    account that can generate a token. The report loads Chart.js from a CDN, so view it on a machine with
+                    internet access. The toolbox needs ArcGIS Pro.
+                </div>
+            </div>
+
+            <div class="intro" id="workflow">
+                <h2>How a load test works</h2>
+                <p>
+                    <strong>1. Build a test file</strong> &mdash; pick services and an area. Random points are placed in
+                    the area; around each point a screen-sized rectangle is made at every scale; every service gets
+                    requests for every rectangle. The result is a <code>.websurge</code> file of a few hundred to a few
+                    thousand requests. Build it in the app (<a href="#app-create">Create New Test</a>) or in ArcGIS Pro
+                    (<a href="#pyt-tool">the toolbox</a>).<br>
+                    <strong>2. Run it</strong> &mdash; the app sends the file's requests over and over with the chosen
+                    number of threads until the duration is up, logging the timing of every response.<br>
+                    <strong>3. Read the report</strong> &mdash; an HTML page opens in the browser with the
+                    <a href="#report-kpi">KPIs</a>, <a href="#report-charts">charts</a> by time, endpoint and scale, and a
+                    <a href="#report-heatmap">heat map</a> of slow places.
+                </p>
+            </div>
+
+            <div class="intro" id="files">
+                <h2>Files in the app folder</h2>
+                <p>Everything the app writes goes into the folder the exe is in.</p>
+                <div class="source-table">
+                    <table>
+                        <thead><tr><th>File</th><th>Written by</th><th>Contents</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>config.json</code></td><td>closing the app</td><td>Saved settings. See <a href="#config">config.json</a>.</td></tr>
+                            <tr><td><code>Centroids.csv</code></td><td>Generate Points</td><td>Random test points, <code>x,y</code> per line.</td></tr>
+                            <tr><td><code>Extents.csv</code></td><td>Generate Extents</td><td>One test area per point per scale.</td></tr>
+                            <tr><td><code>GeoJSON.json</code></td><td>Generate Extents</td><td>The same test areas as polygons, for checking in a GIS.</td></tr>
+                            <tr><td><code>Test.websurge</code></td><td>Generate Test</td><td>The test file. <strong>Overwritten</strong> each time; copy it elsewhere to keep it.</td></tr>
+                            <tr><td><code>results-yyyyMMdd-HHmmss.csv</code></td><td>Run Test</td><td>One row per request. See <a href="#report-csv">Results CSV</a>.</td></tr>
+                            <tr><td><code>results-yyyyMMdd-HHmmss.html</code></td><td>Run Test</td><td>The report, opened automatically when the run ends.</td></tr>
+                            <tr><td><code>LoadTester.log</code></td><td>always</td><td>Application log: logins, service calls, test start and end, errors. Grows without limit; delete it now and then.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ─── The app ──────────────────────────────────────────────── -->
+
+            <div class="method" id="app-login">
+                <div class="method-header">
+                    <h2>Authentication <span class="badge badge-map">Required</span></h2>
+                    <div class="method-signature">Server URL &middot; Username &middot; Password &middot; Login &rarr; Token</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        Enter the <strong>Server URL</strong> of the ArcGIS Server site including its web adaptor, e.g.
+                        <code>https://bso.qonda.app/server</code> (not <code>…/rest/services</code>), a username and
+                        password, and click <strong>Login</strong>. The token appears in the <strong>Token</strong> field and the
+                        status bar says <em>Login successful</em>. <strong>Run Test stays disabled until the Token field has a value.</strong>
+                    </p>
+                    <div class="output-label">How the token is obtained</div>
+                    <p>
+                        The app reads <code>&lt;Server URL&gt;/rest/info</code>. If the server is <strong>federated</strong> with
+                        a portal, it gets a portal token from the portal's <code>generateToken</code> and exchanges it for a
+                        server token for <code>&lt;Server URL&gt;/rest/services</code>. If the server is <strong>standalone</strong>,
+                        it calls the server's own <code>tokens/generateToken</code> with the client IP. Either way the token
+                        lasts <strong>60 minutes</strong>.
+                    </p>
+                    <div class="note">
+                        <strong>60-minute limit.</strong> The token is not renewed during a run. A test longer than about an
+                        hour (warmup included), or one started long after logging in, ends in 498/499 errors. Log in again
+                        just before a long run.
+                        <br><br>
+                        You can also paste a token from elsewhere into the Token field. The token is never saved, but the
+                        URL, username and <strong>password are saved in plain text</strong> in <code>config.json</code> when the
+                        app closes.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="app-modes">
+                <div class="method-header">
+                    <h2>Modes</h2>
+                    <div class="method-signature">Create New Test | Load Existing Test</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        <strong>Create New Test</strong> shows the <em>Test Generation</em> panel for building a test from the
+                        server's service list. <strong>Load Existing Test</strong> hides it and shows a <strong>Browse…</strong>
+                        button for picking a <code>.websurge</code> file made earlier, by the toolbox or by another tool.
+                        The Test Execution panel is the same in both.
+                    </p>
+                    <figure class="screenshot">
+                        <img src="images/app-create.png" alt="The Qonda Load Tester window in Create New Test mode: Authentication, Mode, Test Generation with Services, Spatial Config, Point Generation and Extent Generation, then Test Execution and the status bar" width="606">
+                        <figcaption>Create New Test: the full window</figcaption>
+                    </figure>
+                </div>
+            </div>
+
+            <div class="method" id="app-create">
+                <div class="method-header">
+                    <h2>Create New Test <span class="badge badge-list">5 steps</span></h2>
+                    <div class="method-signature">List Services &rarr; Spatial Config &rarr; Generate Points &rarr; Generate Extents &rarr; Generate Test</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        <strong>1. Services</strong> &mdash; click <strong>List Services</strong> (after logging in). Every MapServer
+                        and FeatureServer in the root and in each folder is listed. Select one or more with Ctrl or Shift.
+                        <strong>Clicking a service fills the Input Extent with that service's full extent</strong>; the last one
+                        clicked wins.<br>
+                        <strong>2. Spatial Config</strong> &mdash; check the <strong>Input Extent</strong>
+                        (<code>xmin,ymin,xmax,ymax,srid,units</code>, see <a href="#design-extent">Input extent</a>) and set the
+                        <strong>Scales</strong>, comma-separated.<br>
+                        <strong>3. Point Generation</strong> &mdash; set <strong>Test Points</strong> and click
+                        <strong>Generate Points</strong>. Points are spread evenly at random over the extent and written to
+                        <code>Centroids.csv</code>; its path appears in <em>Centroid File</em>.<br>
+                        <strong>4. Extent Generation</strong> &mdash; click <strong>Generate Extents</strong> to make one test area
+                        per point per scale (see <a href="#design-scales">Scales and test areas</a>), written to
+                        <code>Extents.csv</code> and <code>GeoJSON.json</code>.<br>
+                        <strong>5. Generate Test</strong> &mdash; click <strong>Generate Test</strong>. For each selected service the
+                        app reads its layer list and writes the requests (see <a href="#design-requests">Requests per service</a>)
+                        to <code>Test.websurge</code>. A message gives the number of requests. If <strong>Randomise</strong> is
+                        ticked, the file is shuffled.
+                    </p>
+                    <div class="note">
+                        Steps 3 and 4 need no network and can be redone without logging in. Step 5 calls each selected
+                        service. Every request uses the SRID from the Input Extent, so pick services in the same
+                        coordinate system, or make sure the extent's SRID is one all of them accept.
+                    </div>
+                    <div class="note">
+                        A service's full extent is often much bigger than the area people use, which puts most points in
+                        empty country. Type a smaller extent by hand, or build the test in ArcGIS Pro with an
+                        <a href="#pyt-extent">extent layer</a>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="app-load">
+                <div class="method-header">
+                    <h2>Load Existing Test</h2>
+                    <div class="method-signature">Browse… &rarr; any .websurge file</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        Choose <strong>Load Existing Test</strong>, click <strong>Browse…</strong> and pick the file. Log in to the
+                        server the test was built for. Relative request paths are sent to
+                        <code>&lt;Server URL&gt;/rest/services/</code>, so the same file can be run against any server that
+                        publishes the same services.
+                    </p>
+                    <figure class="screenshot">
+                        <img src="images/app-load.png" alt="The Qonda Load Tester window in Load Existing Test mode: Authentication, Mode, and Test Execution with a Browse button beside the Test File" width="606">
+                        <figcaption>Load Existing Test: generation steps hidden, Browse… added</figcaption>
+                    </figure>
+                    <div class="note">
+                        The report needs the coordinate system of the test to draw its heat map background. It uses the SRID
+                        in the Input Extent field if that is not 4326; otherwise it takes the first <code>bboxSR=</code> found in
+                        the file's export requests. A file with only query requests has no <code>bboxSR</code>: type an Input
+                        Extent with the right SRID (only the SRID is used) to get the background right.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="app-run">
+                <div class="method-header">
+                    <h2>Test Execution <span class="badge badge-map">Run Test</span> <span class="badge badge-noclose">Stop Test</span></h2>
+                    <div class="method-signature">Test File &middot; Threads &middot; Duration (s) &middot; Randomise &middot; Ramp Threads &middot; Warmup</div>
+                </div>
+                <div class="method-body">
+                    <ul class="param-list">
+                        <li><span class="param-name">Test File</span> &mdash; the <code>.websurge</code> file to run. Filled in by Generate Test or Browse….</li>
+                        <li><span class="param-name">Threads</span> &mdash; the most requests in flight at once. A new request is sent as soon as one finishes. Default 5.</li>
+                        <li><span class="param-name">Duration (s)</span> &mdash; how long new requests keep being sent, not counting warmup. Requests still in flight at the end are allowed to finish.</li>
+                        <li><span class="param-name">Randomise</span> &mdash; reshuffle the requests each time the whole file has been sent. The first pass is in file order. (Also used by Generate Test to shuffle the file itself.)</li>
+                        <li><span class="param-name">Ramp Threads</span> &mdash; start with 1 thread and add threads evenly until the full number is reached one third of the way through the duration.</li>
+                        <li><span class="param-name">Warmup</span> &mdash; seconds of requests sent before the timed test, <strong>not logged</strong>. Use it to wake up services and fill caches so the start of the test is not skewed.</li>
+                    </ul>
+                    <p>
+                        While a run is going the status bar shows the phase, time, request count, errors and requests per
+                        second, once a second:
+                    </p>
+<pre>Running (75s / 305s)  |  Requests: 1843  |  Errors: 0  |  Req/s: 26.3</pre>
+                    <p>
+                        <strong>Stop Test</strong> stops sending new requests, waits for those in flight
+                        (<em>Stopping (waiting for in-flight requests)</em>), then writes the report as usual. When the run ends
+                        the report is generated and opened in the default browser.
+                    </p>
+                    <div class="note">
+                        Threads, duration, warmup and ramp are saved when the app closes. Randomise always starts ticked.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="app-engine">
+                <div class="method-header">
+                    <h2>What happens during a run</h2>
+                    <div class="method-signature">warmup &rarr; timed test (ramp, loop, shuffle) &rarr; drain &rarr; report</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        <strong>Sending</strong> &mdash; each request is a POST to its path, with the token added as
+                        <code>?token=…</code>, the body from the file, and a 120-second timeout. Paths starting with
+                        <code>http</code> are used as they are; others are added to <code>&lt;Server URL&gt;/rest/services/</code>.<br>
+                        <strong>Looping</strong> &mdash; the file is sent from start to end and then again, as many times as the
+                        duration allows. A short file at high thread counts repeats the same requests often, which mostly
+                        tests the server's cache.<br>
+                        <strong>Ramp</strong> &mdash; with Ramp on, warmup runs on 1 thread, and the timed test starts on 1
+                        thread and rises to the full count. Each change is recorded so the report can draw it.<br>
+                        <strong>Timing</strong> &mdash; for each response the app records the time to first byte (until the
+                        response headers arrive) and the download time (reading the body). Their sum is the total.<br>
+                        <strong>Errors</strong> &mdash; an HTTP 4xx or 5xx status, or a request that fails outright (timeout,
+                        connection refused, DNS), logged as <code>ERROR</code>.
+                    </p>
+                    <div class="note">
+                        ArcGIS often returns errors such as an invalid token or a bad parameter as <strong>HTTP 200</strong>
+                        with an <code>{"error": …}</code> JSON body. The app does not read response bodies, so these count as
+                        successes. If response sizes in the report look suspiciously small and even, check one request by
+                        hand.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Test design ──────────────────────────────────────────── -->
+
+            <div class="method" id="design-extent">
+                <div class="method-header">
+                    <h2>Input extent</h2>
+                    <div class="method-signature">xmin,ymin,xmax,ymax,srid,units</div>
+                </div>
+                <div class="method-body">
+<pre>1683000.0,6020000.0,1770000.0,6090000.0,2193,esriMeters
+172.5,-37.0,175.0,-35.0,4326,esriDecimalDegrees</pre>
+                    <ul class="param-list">
+                        <li><span class="param-name">xmin…ymax</span> &mdash; the area test points are spread over, in the coordinate system's units.</li>
+                        <li><span class="param-name">srid</span> &mdash; the WKID. It becomes the <code>inSR</code> / <code>bboxSR</code> of every request and the coordinate system of the report's heat map.</li>
+                        <li><span class="param-name">units</span> &mdash; <code>esriMeters</code> or <code>esriDecimalDegrees</code>. Decides how test-area sizes are worked out.</li>
+                    </ul>
+                    <div class="note">
+                        Units other than metres and degrees (e.g. <code>esriFeet</code>) are treated as metres by the app, so
+                        the test areas come out about a third of the intended size. For services in feet, build the test in
+                        the <a href="#pyt-tool">toolbox</a>, which converts correctly.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="design-scales">
+                <div class="method-header">
+                    <h2>Scales and test areas</h2>
+                    <div class="method-signature">one rectangle per point per scale, sized for imagewidth &times; imageheight at dpi</div>
+                </div>
+                <div class="method-body">
+                    <div class="calc-intro">
+                    <div class="calc-text">
+                    <p>
+                        Each test point becomes one test area for every scale: the rectangle a 1920&times;1080 screen at 96
+                        dpi would show, centred on the point, at that scale. Small scale numbers give small areas with
+                        few features; large ones cover whole districts and work the server harder.
+                    </p>
+                    <p>
+                        At 1:1,000 the area is about 508 &times; 286 m; at 1:250,000 about 127 &times; 71 km.
+                    </p>
+                    </div>
+                    <figure class="calc-figure">
+                        <svg viewBox="0 0 240 150" role="img" aria-label="Three nested dashed rectangles centred on one test point, for scales 1:1000, 1:2500 and 1:5000; the 1:1000 rectangle is highlighted">
+                            <rect x="20" y="22" width="200" height="112" fill="none" stroke="#16213e" stroke-width="1.5" stroke-dasharray="4 3"/>
+                            <rect x="70" y="50" width="100" height="56" fill="none" stroke="#16213e" stroke-width="1.5" stroke-dasharray="4 3"/>
+                            <rect x="100" y="67" width="40" height="22" fill="#e53935" fill-opacity=".6" stroke="#b71c1c" stroke-width="1.5"/>
+                            <circle cx="120" cy="78" r="5" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <text x="24" y="17" font-size="9.5" font-style="italic" fill="#16213e">1:5000</text>
+                            <text x="74" y="45" font-size="9.5" font-style="italic" fill="#16213e">1:2500</text>
+                            <text x="103" y="62" font-size="9.5" font-weight="700" fill="#b71c1c">1:1000</text>
+                        </svg>
+                        <figcaption>one test area per scale, centred on each point</figcaption>
+                    </figure>
+                    </div>
+<pre>width  = imagewidth  / dpi &times; 0.0254 m &times; scale
+height = imageheight / dpi &times; 0.0254 m &times; scale</pre>
+                    <p>
+                        For coordinate systems in degrees the metres are converted using the length of a degree of latitude
+                        at the point. Coordinates are rounded to 1 decimal place (metres) or 4 (degrees). The image size and
+                        DPI are set in <a href="#config">config.json</a>, or in the toolbox's Advanced parameters.
+                    </p>
+                    <div class="note">
+                        Choosing scales: use the scales people actually view the services at. Every scale multiplies the
+                        file size, and very small scales (1:250,000) on detailed layers can produce huge query responses that
+                        test the network more than the server.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="design-requests">
+                <div class="method-header">
+                    <h2>Requests per service</h2>
+                    <div class="method-signature">per test area: query per layer &middot; export per layer &middot; one combined export</div>
+                </div>
+                <div class="method-body">
+                    <p>The app and the toolbox build the same requests. For each test area, each service gets:</p>
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Request</th><th>Path</th><th>Applies to</th><th>Asks for</th></tr></thead>
+                            <tbody>
+                                <tr><td>Layer query</td><td><code>&lt;service&gt;/&lt;layer&gt;/query</code></td><td>every layer, MapServer and FeatureServer</td><td>features in the area, all fields, with geometry, JSON</td></tr>
+                                <tr><td>Layer export</td><td><code>&lt;service&gt;/export</code></td><td>every layer, MapServer only</td><td>a 1000&times;1000 image showing that layer only</td></tr>
+                                <tr><td>Combined export</td><td><code>&lt;service&gt;/export</code></td><td>MapServer with more than one layer</td><td>a 1000&times;1000 image showing all the layers</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+<pre>geometryType=esriGeometryEnvelope&amp;geometry=1744171.1,6032476.6,1745441.1,6033190.9&amp;inSR=2193&amp;outFields=*&amp;returnGeometry=true&amp;f=json
+bbox=1744171.1,6032476.6,1745441.1,6033190.9&amp;bboxSR=2193&amp;size=1000,1000&amp;dpi=96&amp;layers=show:0&amp;f=image</pre>
+                    <div class="note">
+                        Exports ask for a 1000&times;1000 image although the area is shaped for 1920&times;1080, so the server
+                        widens the drawn area to fit. Queries return at most the service's <em>max record count</em> (often
+                        1000 or 2000) features, so at small scales a query's cost is capped by that setting.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="design-file">
+                <div class="method-header">
+                    <h2>The .websurge file</h2>
+                    <div class="method-signature">one block per request, separated by a dashed line</div>
+                </div>
+                <div class="method-body">
+<pre><span class="json-key">POST</span> Testing/WhangareiParcelsMap/MapServer/0/query HTTP/2.0
+<span class="json-key">Websurge-Request-Name:</span> <span class="json-str">Testing/WhangareiParcelsMap/MapServer/0/query|147|1744806.100000|6032833.750000|2500</span>
+<span class="json-key">Content-Type:</span> application/x-www-form-urlencoded
+
+geometryType=esriGeometryEnvelope&amp;geometry=1744171.1,6032476.6,1745441.1,6033190.9&amp;inSR=2193&amp;outFields=*&amp;returnGeometry=true&amp;f=json
+
+------------------------------------------------------------------</pre>
+                    <p>
+                        It is the West Wind WebSurge text format: a request line, headers, a blank line, the body, and a
+                        separator of ten or more dashes. Files from WebSurge itself can be loaded; a
+                        <em>WebSurge Options</em> block is skipped. Other headers are sent with the request.
+                    </p>
+                    <p>
+                        <code>Websurge-Request-Name</code> is not sent. It names the request in the report. After the endpoint
+                        it carries four values separated by <code>|</code>: the test area id, its centre X and Y, and the scale.
+                        The report uses them for the <a href="#report-heatmap">heat map</a> and the by-scale chart. Requests
+                        without them still run and report, just without those two charts.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ─── Toolbox ──────────────────────────────────────────────── -->
+
+            <div class="method" id="pyt-tool">
+                <div class="method-header">
+                    <h2>Generate Load Test From Map <span class="badge badge-map">ArcGIS Pro</span> <span class="badge badge-list">Writes .websurge</span></h2>
+                    <div class="method-signature">QondaLoadTester.pyt &middot; tool "GenerateTest" &middot; alias qonda</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        Builds a test file from the map open in ArcGIS Pro: <strong>the services are the service layers in the
+                        map, and the test area is what the map view shows</strong>, or the polygons of a layer named
+                        <code>extent</code>. It replaces steps 1&ndash;5 of <a href="#app-create">Create New Test</a>; the file is
+                        built the same way, so results are comparable. Run the file with <a href="#app-load">Load Existing Test</a>.
+                    </p>
+                    <p>
+                        Add it in the Catalog pane (<em>Toolboxes</em> &rarr; <em>Add Toolbox</em>), open a map with the services,
+                        zoom to the test area and run it from the Geoprocessing pane with the map view active. It reads the
+                        open project, so it cannot be run from a standalone script.
+                    </p>
+                    <div class="output-label">Parameters</div>
+                    <ul class="param-list">
+                        <li><span class="param-name">Output Test File</span> &mdash; the <code>.websurge</code> file to write. Defaults to <code>Test.websurge</code> in the project's home folder.</li>
+                        <li><span class="param-name">Scales</span> &mdash; comma-separated. Default <code>250000,100000,50000,25000,10000,5000,2500,1000,500,250</code>.</li>
+                        <li><span class="param-name">Number of Test Points</span> &mdash; default 50.</li>
+                        <li><span class="param-name">Generate points within the 'extent' polygon layer</span> &mdash; default on. See <a href="#pyt-extent">The extent layer</a>. Off, or no such layer: the map view's extent is used.</li>
+                        <li><span class="param-name">Include layer query requests</span> &mdash; default on.</li>
+                        <li><span class="param-name">Include map export requests</span> &mdash; default on. MapServer only.</li>
+                        <li><span class="param-name">Randomise request order</span> &mdash; default on. Shuffles the file.</li>
+                        <li><span class="param-name">Request Paths</span> &mdash; <code>Relative</code> (default) or <code>Absolute</code>. See <a href="#pyt-paths">Relative or absolute paths</a>.</li>
+                        <li><span class="param-name">Image Width</span>, <span class="param-name">Image Height</span>, <span class="param-name">DPI</span> &mdash; Advanced. Default 1920 &times; 1080 at 96, as in the app.</li>
+                        <li><span class="param-name">Also write Centroids.csv, Extents.csv and GeoJSON</span> &mdash; Advanced, default off. See <a href="#pyt-output">Messages and extra files</a>.</li>
+                    </ul>
+                    <div class="note">
+                        The map's coordinate system is used for every request, and must have a WKID. Unlike the app, the
+                        toolbox handles maps in feet correctly.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="pyt-extent">
+                <div class="method-header">
+                    <h2>The extent layer <span class="badge badge-list">Optional</span></h2>
+                    <div class="method-signature">a polygon layer named "extent" in the map</div>
+                </div>
+                <div class="method-body">
+                    <div class="calc-intro">
+                    <div class="calc-text">
+                    <p>
+                        Add a polygon layer called <code>extent</code> to the map to test only where it matters: a town, a
+                        district, the area people actually look at. Random points are drawn across the polygons' bounding
+                        box and kept only if they fall inside a polygon.
+                    </p>
+                    <p>
+                        Only the points are kept inside. The test areas around them can still reach past the polygon edge,
+                        especially at small scales.
+                    </p>
+                    </div>
+                    <figure class="calc-figure">
+                        <svg viewBox="0 0 240 150" role="img" aria-label="An irregular extent polygon inside the dashed map view; five test points inside the polygon are kept and three points outside it are rejected">
+                            <rect x="6" y="8" width="228" height="134" fill="none" stroke="#16213e" stroke-width="1.5" stroke-dasharray="4 3"/>
+                            <path d="M40,30 L150,22 L200,60 L180,124 L70,132 L28,90 Z" fill="#fff3d6" stroke="#16213e" stroke-width="2.5"/>
+                            <circle cx="214" cy="30" r="6" fill="#fff" stroke="#9e9e9e" stroke-width="2"/>
+                            <circle cx="24" cy="126" r="6" fill="#fff" stroke="#9e9e9e" stroke-width="2"/>
+                            <circle cx="212" cy="124" r="6" fill="#fff" stroke="#9e9e9e" stroke-width="2"/>
+                            <circle cx="82" cy="58" r="6" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <circle cx="132" cy="48" r="6" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <circle cx="112" cy="94" r="6" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <circle cx="160" cy="88" r="6" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <circle cx="70" cy="106" r="6" fill="#4caf50" stroke="#b71c1c" stroke-width="2.5"/>
+                            <text x="48" y="46" font-size="9.5" font-style="italic" fill="#16213e">extent</text>
+                            <text x="10" y="20" font-size="9.5" font-style="italic" fill="#16213e">map view</text>
+                        </svg>
+                        <figcaption>points inside the extent polygons are kept; the rest are redrawn</figcaption>
+                    </figure>
+                    </div>
+                    <ul class="param-list">
+                        <li><span class="param-name">Name</span> &mdash; <code>extent</code> in the Contents pane, any capitalisation, inside a group layer or not. The first polygon layer with that name is used.</li>
+                        <li><span class="param-name">Which polygons</span> &mdash; all of them, merged. <strong>A selection or definition query on the layer is honoured</strong>, so you can select one suburb and test only that.</li>
+                        <li><span class="param-name">Coordinates</span> &mdash; any; projected to the map's coordinate system.</li>
+                        <li><span class="param-name">Data source</span> &mdash; use local data (file geodatabase, shapefile, memory). If it comes from a feature service, that service is load tested too.</li>
+                    </ul>
+                    <div class="note">
+                        The tool makes up to 1,000 tries per point (at least 10,000 in all). A very thin polygon in a large
+                        bounding box may get fewer points than asked, with the warning
+                        <code>Only placed n of m points inside the polygon.</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="pyt-layers">
+                <div class="method-header">
+                    <h2>Which layers are tested</h2>
+                    <div class="method-signature">MapServer and FeatureServer layers in the map; everything else is skipped</div>
+                </div>
+                <div class="method-body">
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Layer in the map</th><th>Tested?</th></tr></thead>
+                            <tbody>
+                                <tr><td>Map image layer (<code>…/MapServer</code>)</td><td>Yes: its sublayers.</td></tr>
+                                <tr><td>Feature layer from a feature service (<code>…/FeatureServer/n</code>)</td><td>Yes: that layer.</td></tr>
+                                <tr><td>Feature layer from a map service (<code>…/MapServer/n</code>)</td><td>Yes: that layer, with query and export requests.</td></tr>
+                                <tr><td>Hosted feature or map services on ArcGIS Online or Enterprise</td><td>Yes.</td></tr>
+                                <tr><td>Basemap layers</td><td>No.</td></tr>
+                                <tr><td>Image, vector tile, scene, WMS / WMTS services</td><td>No.</td></tr>
+                                <tr><td>Local data: file or enterprise geodatabase, shapefile, memory</td><td>No.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>
+                        Layers from the same service are grouped, so three feature layers from <code>Roads/FeatureServer</code>
+                        test layers 0, 1 and 2 of one service. <strong>Visibility is ignored</strong>: a layer switched off is
+                        still tested. Remove it from the map to leave it out.
+                    </p>
+                    <div class="note">
+                        Layer numbers come from the map. If a map image layer does not reveal its sublayer numbers, the tool
+                        asks the service using your ArcGIS Pro sign-in. If that fails too, the service gets one
+                        all-layers export only, and the messages show <code>layers [default]</code>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="pyt-paths">
+                <div class="method-header">
+                    <h2>Relative or absolute paths</h2>
+                    <div class="method-signature">Request Paths = Relative | Absolute</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        <strong>Relative</strong> (default) writes paths such as <code>Testing/Roads/FeatureServer/0/query</code>.
+                        The app puts the Server URL you log in with, plus <code>/rest/services/</code>, in front, so one file
+                        can be run against test and production servers that publish the same services.
+                    </p>
+                    <p>
+                        <strong>Absolute</strong> writes full URLs. Use it when the map has services from more than one server;
+                        the tool warns when it sees that with Relative paths. The app still adds its one token to every
+                        request, so a second server only accepts it if both trust the same portal.
+                    </p>
+                </div>
+            </div>
+
+            <div class="method" id="pyt-output">
+                <div class="method-header">
+                    <h2>Messages and extra files</h2>
+                    <div class="method-signature">tool messages &middot; &lt;name&gt;_Centroids.csv &middot; &lt;name&gt;_Extents.csv &middot; &lt;name&gt;_GeoJSON.json</div>
+                </div>
+                <div class="method-body">
+<pre>Map: Whangarei  (SR 2193 - NZGD_2000_New_Zealand_Transverse_Mercator)
+Generating 50 points within the 'extent' layer
+  Testing/WhangareiParcelsMap/MapServer: layers [0,1,2] -> 3500 requests
+  Testing/Roads/FeatureServer: layers [0] -> 500 requests
+Wrote 4000 requests (50 points x 10 scales) to C:\Projects\Whangarei\Test.websurge</pre>
+                    <p>
+                        The second line says which test area was used: <code>Generating … within the 'extent' layer</code>, or
+                        <code>No 'extent' polygon layer found - using the map extent</code> followed by the extent's coordinates.
+                        Each service line gives the layer numbers tested and the requests added.
+                    </p>
+                    <p>
+                        With <em>Also write Centroids.csv, Extents.csv and GeoJSON</em> on, three files are written next to the
+                        test file, named after it, in the same layouts as the app's <code>Centroids.csv</code>,
+                        <code>Extents.csv</code> and <code>GeoJSON.json</code>. They are for checking, not needed to run the test.
+                    </p>
+                    <div class="note">
+                        The GeoJSON (the app's and the toolbox's) is in the test's coordinate system, not WGS84 as the
+                        GeoJSON standard assumes. Set the coordinate system to its <code>srid</code> when adding it to a GIS, or
+                        it lands in the wrong place.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Report ───────────────────────────────────────────────── -->
+
+            <div class="method" id="report-csv">
+                <div class="method-header">
+                    <h2>Results CSV</h2>
+                    <div class="method-signature">results-yyyyMMdd-HHmmss.csv &middot; one row per logged request</div>
+                </div>
+                <div class="method-body">
+<pre>Name,StatusCode,TimeToFirstByteMs,DownloadMs,TotalMs,ResponseSizeBytes,Timestamp
+__CONCURRENCY__,1,,,,,2026-10-08T03:49:44.1234567Z
+Testing/Roads/FeatureServer/0/query|12|1755286.200000|6021508.800000|100000,200,184,6,190,48211,2026-10-08T03:49:44.2011234Z
+Testing/Roads/FeatureServer/0/query|31|1729886.200000|6007221.300000|250,ERROR,,,,,2026-10-08T03:49:45.0012345Z</pre>
+                    <ul class="param-list">
+                        <li><span class="param-name">Name</span> &mdash; the request name from the test file.</li>
+                        <li><span class="param-name">StatusCode</span> &mdash; the HTTP status, or <code>ERROR</code> if the request failed without one.</li>
+                        <li><span class="param-name">TimeToFirstByteMs</span>, <span class="param-name">DownloadMs</span>, <span class="param-name">TotalMs</span> &mdash; see <a href="#app-engine">Timing</a>.</li>
+                        <li><span class="param-name">ResponseSizeBytes</span> &mdash; body size.</li>
+                        <li><span class="param-name">Timestamp</span> &mdash; UTC, when the request was sent.</li>
+                        <li><span class="param-name">__CONCURRENCY__</span> rows &mdash; the thread count at that moment; one at the start and one per ramp step.</li>
+                    </ul>
+                    <p>Warmup requests are not logged. The CSV opens in Excel for your own analysis.</p>
+                </div>
+            </div>
+
+            <div class="method" id="report-kpi">
+                <div class="method-header">
+                    <h2>KPI summary</h2>
+                    <div class="method-signature">results-yyyyMMdd-HHmmss.html &middot; header, KPI tiles, Services table</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        The header gives the time, number of requests and duration, plus the Input Extent and the scales
+                        found in the test. Below it:
+                    </p>
+                    <figure class="screenshot">
+                        <img src="images/report-summary.png" alt="Report header, fourteen KPI tiles and the Services table for a 15-second test of 508 requests with no errors">
+                        <figcaption>header, KPI tiles and Services table from a short ramped test</figcaption>
+                    </figure>
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Tile</th><th>Meaning</th></tr></thead>
+                            <tbody>
+                                <tr><td>Req / sec</td><td>All logged requests, errors included, per second of test.</td></tr>
+                                <tr><td>Avg TPS</td><td>Successful requests per second (errors excluded).</td></tr>
+                                <tr><td>Avg TTFB</td><td>Average time to first byte: mostly the server's processing time.</td></tr>
+                                <tr><td>Avg Download</td><td>Average time to read the response body: mostly size and network.</td></tr>
+                                <tr><td>Avg Total</td><td>Average TTFB + download.</td></tr>
+                                <tr><td>p50 / p95 / p99</td><td>Total time that 50 / 95 / 99 % of requests finished within.</td></tr>
+                                <tr><td>Min / Max</td><td>Fastest and slowest request.</td></tr>
+                                <tr><td>Data / Throughput</td><td>Total MB received, and KB/s on average.</td></tr>
+                                <tr><td>Errors / Error Rate</td><td>Requests with 4xx, 5xx or <code>ERROR</code>. The rate turns orange above 0 % and red above 5 %.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>
+                        The <strong>Services</strong> table repeats requests, errors, error %, average TTFB, download, total and p95
+                        for each service.
+                    </p>
+                    <div class="note">
+                        The duration used for rates is from the first to the last timed response. Timing figures include
+                        HTTP error responses (a fast 500 lowers the average) but not <code>ERROR</code> rows, which have no
+                        timing. With a high error rate, read the timings with care.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="report-charts">
+                <div class="method-header">
+                    <h2>Charts</h2>
+                    <div class="method-signature">by time &middot; by response time &middot; by endpoint &middot; by scale</div>
+                </div>
+                <div class="method-body">
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Chart</th><th>Shows</th><th>Look for</th></tr></thead>
+                            <tbody>
+                                <tr><td>Concurrent Requests Over Duration</td><td>Threads in use over time.</td><td>That the ramp happened as expected.</td></tr>
+                                <tr><td>Response Time Over Duration</td><td>Every request's total time against elapsed time; red dots are above p95.</td><td>An upward trend means the server is falling behind; a sudden band of red, a stall (recycling, GC, another load).</td></tr>
+                                <tr><td>Requests Over Duration</td><td>Successes (green) and errors (red) per second.</td><td>Green falling while red rises: the server is failing under load.</td></tr>
+                                <tr><td>Response Time Distribution</td><td>Count of requests in 50 ms buckets of total time, up to 10 s; slower ones in a final <code>10000ms+</code> bucket.</td><td>One narrow peak is consistent; two peaks or a long tail mean some requests take a different path (cache misses, heavy layers, small scales).</td></tr>
+                                <tr><td>Status Codes</td><td>Share of each status: 200 green, 4xx orange, 5xx and ERROR red.</td><td>Anything that is not 200.</td></tr>
+                                <tr><td>Avg TTFB vs Download by Endpoint</td><td>Per request name, the server part and the download part of the average.</td><td>Long TTFB: server-side work. Long download: large responses.</td></tr>
+                                <tr><td>Avg &amp; p95 by Endpoint</td><td>Average and p95 per request name, slowest first.</td><td>A large gap: an endpoint that is usually fine but sometimes very slow.</td></tr>
+                                <tr><td>Avg &amp; p95 by Scale</td><td>Average and p95 per scale, zoomed in first. Only for tests with scale information.</td><td>Which scales are expensive; usually the small scales (zoomed out) on detailed layers.</td></tr>
+                                <tr><td>Request Count by Endpoint</td><td>How many times each request name was sent.</td><td>That the test covered the services evenly.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <figure class="screenshot">
+                        <img src="images/report-response-time.png" alt="Response Time Over Duration scatter chart: times climb from under 200 ms to about 800 ms as threads ramp up over the first 5 seconds, with red outliers above p95">
+                        <figcaption>response time over duration: times rise as the ramp adds threads, then level off</figcaption>
+                    </figure>
+                    <figure class="screenshot">
+                        <img src="images/report-distribution.png" alt="Response Time Distribution histogram in 50 ms buckets from 0 to 1300 ms, with most requests between 550 and 950 ms">
+                        <figcaption>response time distribution in 50 ms buckets</figcaption>
+                    </figure>
+                    <figure class="screenshot">
+                        <img src="images/report-scale.png" alt="Avg and p95 by Scale bar chart for ten scales from 1:250 to 1:250,000, averages between about 550 and 750 ms">
+                        <figcaption>avg &amp; p95 by scale</figcaption>
+                    </figure>
+                    <p>
+                        "Endpoint" is the request name without the heat-map values: e.g.
+                        <code>Testing/Roads/FeatureServer/0/query</code> or <code>…/MapServer/export (all)</code>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="method" id="report-heatmap">
+                <div class="method-header">
+                    <h2>Response Time Heat Map</h2>
+                    <div class="method-signature">average total time per test area, on a background map</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        Shown when the test file has heat-map values (every test from the app or the toolbox does) and at
+                        least three test areas were hit. Each dot is a test location, coloured from green (fastest) through
+                        orange to red (slowest), relative to the others in view. Hover a dot for its average time and request
+                        count. The <strong>Scale</strong> list shows one scale at a time, or all of them averaged.
+                    </p>
+                    <figure class="screenshot">
+                        <img src="images/report-heatmap.png" alt="Response Time Heat Map over a street map of the Whangarei district, with about fifty dots coloured from green (204 ms) to red (1088 ms) and a Scale drop-down set to All">
+                        <figcaption>heat map, all scales, over the World Street Map background</figcaption>
+                    </figure>
+                    <p>
+                        The background is a map image fetched once from <code>basemapurl</code> in
+                        <a href="#config">config.json</a> (Esri World Street Map by default) in the test's coordinate system, and
+                        embedded in the report. If it cannot be fetched, a plain grid is drawn instead.
+                    </p>
+                    <div class="note">
+                        A red cluster is a place that is slow at that scale: dense data, complex symbols or labels, or a
+                        cache boundary. Check it in a map at the same scale.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Configuration ────────────────────────────────────────── -->
+
+            <div class="method" id="config">
+                <div class="method-header">
+                    <h2>config.json <span class="badge badge-meta">Per machine</span></h2>
+                    <div class="method-signature">next to the exe &middot; read at start, written when the app closes</div>
+                </div>
+                <div class="method-body">
+                    <p>
+                        Holds the app's settings. Most are the values last used in the window. A few are only set here:
+                        close the app, edit the file, and start it again (edits made while the app is open are overwritten
+                        when it closes). A missing file or key falls back to the default.
+                    </p>
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Key</th><th>Default</th><th>Set in</th><th>Meaning</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>defaulturl</code></td><td>https://bso.qonda.app/server</td><td>window</td><td>Server URL.</td></tr>
+                                <tr><td><code>defaultuser</code></td><td>siteadmin</td><td>window</td><td>Username.</td></tr>
+                                <tr><td><code>defaultpassword</code></td><td>(blank)</td><td>window</td><td>Password, <strong>stored in plain text</strong>. Blank it if the machine is shared.</td></tr>
+                                <tr><td><code>defaultscales</code></td><td>250000,…,250</td><td>window</td><td>Scales.</td></tr>
+                                <tr><td><code>points</code></td><td>100</td><td>window</td><td>Test Points.</td></tr>
+                                <tr><td><code>defaultthreads</code></td><td>5</td><td>window</td><td>Threads.</td></tr>
+                                <tr><td><code>defaultduration</code></td><td>300</td><td>window</td><td>Duration (s).</td></tr>
+                                <tr><td><code>warmupseconds</code></td><td>0</td><td>window</td><td>Warmup.</td></tr>
+                                <tr><td><code>ramp</code></td><td>false</td><td>window</td><td>Ramp Threads.</td></tr>
+                                <tr><td><code>centroidpath</code>, <code>extentpath</code>, <code>testpath</code></td><td>(blank)</td><td>window</td><td>Last Centroid File, Extent File and Test File.</td></tr>
+                                <tr><td><code>dpi</code></td><td>96</td><td><strong>file only</strong></td><td>DPI for test-area sizes.</td></tr>
+                                <tr><td><code>imagewidth</code>, <code>imageheight</code></td><td>1920, 1080</td><td><strong>file only</strong></td><td>Screen size in pixels for test-area sizes.</td></tr>
+                                <tr><td><code>basemapurl</code></td><td>…/World_Street_Map/MapServer</td><td><strong>file only</strong></td><td>MapServer used for the heat map background. Blank: no background.</td></tr>
+                                <tr><td><code>randomisecentroid</code>, <code>randomiserequests</code></td><td>false, true</td><td>&mdash;</td><td>Kept in the file but not used.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Reference ────────────────────────────────────────────── -->
+
+            <div class="method" id="ref-count">
+                <div class="method-header">
+                    <h2>Request count</h2>
+                    <div class="method-signature">points &times; scales &times; requests per test area</div>
+                </div>
+                <div class="method-body">
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Service</th><th>Requests per test area (n layers)</th></tr></thead>
+                            <tbody>
+                                <tr><td>FeatureServer</td><td>n queries</td></tr>
+                                <tr><td>MapServer, n = 1</td><td>1 query + 1 export = 2</td></tr>
+                                <tr><td>MapServer, n &gt; 1</td><td>n queries + n exports + 1 combined export = 2n + 1</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>
+                        Example: 50 points &times; 10 scales = 500 test areas. A map service with 3 layers adds
+                        500 &times; 7 = 3,500 requests; a feature service with 1 layer adds 500. The file holds 4,000 requests.
+                    </p>
+                    <div class="note">
+                        The file is a pool to draw from, not the number of requests that will be sent: the run loops it for
+                        the whole duration. A few thousand varied requests is plenty. More points cover the area better;
+                        fewer scales keep the file small.
+                    </div>
+                </div>
+            </div>
+
+            <div class="method" id="troubleshooting">
+                <div class="method-header">
+                    <h2>Troubleshooting</h2>
+                    <div class="method-signature">symptoms and fixes; details are in LoadTester.log</div>
+                </div>
+                <div class="method-body">
+                    <div class="output-label">The app</div>
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Symptom</th><th>Cause and fix</th></tr></thead>
+                            <tbody>
+                                <tr><td><em>Login failed</em>, Token blank</td><td>Wrong URL (it must include the web adaptor, e.g. <code>/server</code>), wrong password, or <code>/rest/info</code> unreachable. The log has the token URL and the server's reply.</td></tr>
+                                <tr><td>Run Test is greyed out</td><td>The Token field is empty. Log in, or paste a token.</td></tr>
+                                <tr><td><em>0 services found</em></td><td>Not logged in, or the account cannot see any services. The list only shows MapServer and FeatureServer.</td></tr>
+                                <tr><td>Input Extent not filled when clicking a service</td><td>The service's details could not be read, or it has no layers. Type the extent by hand.</td></tr>
+                                <tr><td><em>Generate centroids first</em> / <em>Generate extents first</em></td><td>Run the steps in order; each needs the file from the step before.</td></tr>
+                                <tr><td>Many 498 or 499 errors</td><td>The token expired (60 minutes) or belongs to a different server. Log in again before running.</td></tr>
+                                <tr><td>Many 404 errors</td><td>The test's services do not exist on the server you logged in to, or the Server URL is wrong.</td></tr>
+                                <tr><td>Many <code>ERROR</code> rows</td><td>Requests timing out (120 s) or the connection refused: the server is overloaded or unreachable. Try fewer threads.</td></tr>
+                                <tr><td>Heat map dots in the wrong place, or no background</td><td>Wrong SRID for the report. See the note under <a href="#app-load">Load Existing Test</a>. A blank <code>basemapurl</code> or no internet gives a grid instead.</td></tr>
+                                <tr><td>Report has no charts</td><td>The browser could not load Chart.js from the internet.</td></tr>
+                                <tr><td>No report opened</td><td>No request returned a timed response (all <code>ERROR</code>). Check the results CSV and the log.</td></tr>
+                                <tr><td><em>The report was saved but could not be opened automatically</em></td><td>Windows has no default browser set for <code>.html</code> files (common in Windows Sandbox and locked-down machines). File Explorer opens with the report selected; open it in a browser.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="output-label">The toolbox</div>
+                    <div class="source-table">
+                        <table>
+                            <thead><tr><th>Message</th><th>Cause and fix</th></tr></thead>
+                            <tbody>
+                                <tr><td><code>Open a map view before running this tool.</code></td><td>Click into a map view and run again.</td></tr>
+                                <tr><td><code>No active map view - using the map's default extent.</code></td><td>A layout was active. Activate the map view.</td></tr>
+                                <tr><td><code>The map's coordinate system has no WKID</code></td><td>Set the map to a standard coordinate system (e.g. 2193 or 3857).</td></tr>
+                                <tr><td><code>No MapServer or FeatureServer layers found in the map.</code></td><td>The map only has local data, basemaps or other service types.</td></tr>
+                                <tr><td><code>No 'extent' polygon layer found</code></td><td>Expected without one. Otherwise check the layer name and that it is polygons.</td></tr>
+                                <tr><td><code>The 'extent' layer has no polygons to use.</code></td><td>Empty layer, or the selection or definition query leaves nothing.</td></tr>
+                                <tr><td><code>Services come from more than one server</code></td><td>Use Absolute paths, or remove the other server's layers.</td></tr>
+                                <tr><td><code>Could not list layers for …</code></td><td>Sign in to Pro with an account that can see the service, or add its sublayers as feature layers.</td></tr>
+                                <tr><td><code>The test has no export requests …</code></td><td>See the SRID note under <a href="#app-load">Load Existing Test</a>.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<footer>
+    Qonda Load Tester &middot; app and ArcGIS Pro toolbox
+</footer>
+
+<script>
+    // Sidebar collapse
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+    });
+
+    // Highlight the nav entry for the section in view
+    const links = Array.from(document.querySelectorAll('.sidebar nav a'));
+    const targets = links
+        .map(a => document.getElementById(a.getAttribute('href').slice(1)))
+        .filter(Boolean);
+    function highlight() {
+        let current = targets[0];
+        for (const t of targets) {
+            if (t.getBoundingClientRect().top <= 90) current = t;
+        }
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current.id));
+    }
+    document.addEventListener('scroll', highlight, { passive: true });
+    highlight();
+</script>
+
+</body>
+</html>
